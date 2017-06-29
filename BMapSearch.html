@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="”renderer”" content="webkit">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+	<title>百度地图搜索组件</title>
+	<style type="text/css">
+		::-webkit-scrollbar{width: 6px;background-color: #F5F5F5;}  
+		/*定义滑块 内阴影+圆角*/  
+		::-webkit-scrollbar-thumb{border-radius: 10px;-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.2);background-color: #555;}
+		.container{width: 800px;margin:50px auto;}
+		/*搜索样式开始*/
+		.container .searchMap{width:100%;}
+		.container .searchMap .searchInp{width:400px;height: 35px;padding-left: 10px;border-radius: 5px;border:1px solid #ccc;box-sizing: border-box;}
+		.container .searchMap .searchBtn{width:100px;height: 35px;box-sizing: border-box;border-radius: 5px;border:1px solid #ccc;background-color: #fff;}
+		.container .searchMap .searchBtn:hover{background-color: rgba(0,0,0,0.1);}
+		/*地图样式开始*/
+		.container .mapBox{display: -webkit-flex;display: -ms-flex;display: -moz-flex;display: flex;width: 100%;height: 450px;margin-top: 30px;border:1px solid #ccc;}
+		.container .mapBox .searchResult{display: none;width: 200px;height:100%;border-right:1px solid #ccc;font-size: 13px;overflow: auto;}
+		.container .mapBox #map{flex: 1;}
+		.container .mapBox .co_38f{color: #38f;font-size: 13px;cursor: pointer;}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<form>
+			<input type="hidden" name="lat" value="">
+			<input type="hidden" name="lng" value="">
+			<div class="searchMap">
+				<input class="searchInp" type="text" name="search" placeholder="请输入您想查询的地址">
+				<button class="searchBtn">搜索</button>
+			</div>
+			<div class="mapBox">
+				<div class="searchResult"></div>
+				<div id="map"></div>
+			</div>
+		</form>
+	</div>
+</body>
+<script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+<!--地图接口-->
+<script src="http://api.map.baidu.com/api?v=2.0&ak=Gl9ARRgPlcASCW55a33dw5AE8URjrKRu"></script>
+<script type="text/javascript">
+var searchVal = $("input[name='search']").val();
+Map("map",searchVal,0);//默认状态（编辑状态）
+$(".searchBtn").click(function(e){
+	e.preventDefault();//阻止表单提交
+	searchVal = $("input[name='search']").val();
+	Map("map",searchVal,1);//搜索状态
+	$(".searchResult").show();
+});
+/*
+*type 0 默认地址 type 1 搜索
+*三种状态  搜索状态  默认状态（编辑状态） 点击状态
+*/
+function Map(ele,data,type){
+	console.log(data)
+	data = data?data:"杭州";//默认值杭州
+	//去掉地址中的 “市辖县”，解决地图不识别；
+	var str = "市辖县";
+	if (data.search(str) != -1) {
+		data = data.replace(str, "");
+		//alert(data);
+	}
+	var map = new BMap.Map(ele); // 创建地图实例    
+		 
+	/*1.搜索状态*/
+	if(type == 1){
+		var markerArray=new Array(); 
+		var local = new BMap.LocalSearch(map, {       
+		    renderOptions: {       
+		        map: map,          
+		        autoViewport: true,   //自动结果标注    
+		        selectFirstResult: false   //不指定到第一个目标    
+		    },       
+		    pageCapacity: 8,  
+		    //自定义marker事件  
+		    onMarkersSet:function(pois){  
+		        for(var i=0;i<pois.length;i++){  
+		            (function(){  
+		                var index=i;  
+		                var curPoi=pois[i];  
+		                var curMarker=pois[i].marker;  
+		                markerArray[i]=curMarker;  
+		            })();  
+		        }  
+		          
+		    },  
+			onSearchComplete:function(res){
+				if(local.getStatus() == BMAP_STATUS_SUCCESS){
+					var html='<ol style="list-style: none outside none; padding: 0px; margin: 0px;">';  
+		            for(var i=0;i<res.getCurrentNumPois();i++){  
+		                var poi=res.getPoi(i);  
+		                var bYposition=2-i*20;  
+		                html+='<li id="poi'+i+'" index="'+i+'" style="margin: 2px 0px; padding: 0px 5px 0px 3px; cursor: pointer; overflow: hidden; line-height: 17px;">';  
+		                html+='<span style="background:url(http://api.map.baidu.com/bmap/red_labels.gif) 0 '+bYposition+'px no-repeat;padding-left:10px;margin-right:3px"></span>'  
+		                html+='<span style="color:#000;font-weight:bold; line-height:25px;"><b>'+poi.title+'</b></span>';  
+		                html+='<div style="color:#666;line-height:25px;">地址：'+poi.address+'</div >'  
+		                html+='</li>';  
+		            }  
+		            html+="</ol>";  
+		        	$(".searchResult").html(html);
+					for(var i=0;i<res.getCurrentNumPois();i++){  
+		                (function(){  
+		                    var index=i+1;  
+		                    var poi=res.getPoi(i); 
+		                    var content = "";//提示框内容  
+		                    content+="<div>地址:<span>"+poi.address+"</span></div>";  
+		                    content+='<hr/>';
+		                    content+='<a class="co_38f" onclick="addAddress(this)" data-lat="'+poi.point.lat+'" data-lng="'+poi.point.lng+'">设为联系地址</a>';  
+		                    var info=new BMap.InfoWindow(content)  
+		                    $("#poi"+i).click(function(){
+		                        markerArray[$(this).attr('index')].openInfoWindow(info);  
+		                    });
+		                })();  
+		            } 
+				}else{
+		            $(".searchResult").html("<div>抱歉，未搜到有效的结果</div>");
+		            map.centerAndZoom("杭州", 12);
+				}
+			}
+		})
+		local.search(data);
+	}else{
+		/*2.默认状态*/
+		if(data!="杭州"){
+			//经纬度  中心点设置
+			var longitude = $("input[name='lng']").val();
+			var latitude = $("input[name='lat']").val();
+			var point = new BMap.Point(longitude, latitude); // 创建点坐标    
+			var marker = new BMap.Marker(point);  // 创建标注
+			map.addOverlay(marker);              // 将标注添加到地图中
+			map.centerAndZoom(point, 15);
+			var content = "";//提示框内容  
+            content+="<div>地址:<span>"+data+"</span></div>";  
+            content+='<hr/>';
+            content+='<a class="co_38f">设为联系地址</a>';  
+            var info=new BMap.InfoWindow(content)          
+			map.openInfoWindow(info,point); //默认开启信息窗口
+		}else{
+			//默认杭州
+			map.centerAndZoom(data,12); 
+		}
+		
+	}
+	/*3.点击状态*/
+	// 点击获得坐标点；
+	var gc = new BMap.Geocoder(); 
+	map.addEventListener('click', function(e){
+		//清除所有的覆盖物
+		map.clearOverlays(); 
+		// 隐藏搜索结果
+		$("#s_result").hide();
+		var point = new BMap.Point(e.point.lng, e.point.lat);
+		var marker = new BMap.Marker(point); // 创建标注    
+		map.addOverlay(marker);
+		var pt = e.point;
+		gc.getLocation(pt, function(rs){
+			console.log(rs)
+			var addComp = rs.addressComponents;
+			$(".searchInp").val(rs.address);
+			var content = "";//提示框内容  
+            content+="<div>地址:"+rs.address+"</div>";  
+            content+='<hr/>';
+            content+='<a class="co_38f">已设为联系地址</a>';  
+            $('input[name="lat"]').val(rs.point.lat);
+            $('input[name="lng"]').val(rs.point.lng);
+            var info=new BMap.InfoWindow(content);  
+			map.openInfoWindow(info,point); //开启信息窗口
+		});
+	}); 
+	
+	map.enableScrollWheelZoom();   // 开启鼠标滚轮缩放    
+	map.enableKeyboard(); 		   // 开启键盘控制    
+	map.enableContinuousZoom();    // 开启连续缩放效果    
+	map.enableInertialDragging();  // 开启惯性拖拽效果   
+	
+	map.addControl(new BMap.NavigationControl());  //添加标准地图控件(左上角的放大缩小左右拖拽控件)  
+	map.addControl(new BMap.ScaleControl());       //添加比例尺控件(左下角显示的比例尺控件)  
+	map.addControl(new BMap.OverviewMapControl()); // 缩略图控件  
+}
+function addAddress(that){
+	$(that).text("已设为联系地址");
+	$('input[name="lat"]').val($(that).data("lat"));
+    $('input[name="lng"]').val($(that).data("lng"));
+    $(".searchInp").val($(that).siblings('div').children().text());
+    $(".searchResult").hide();
+}
+</script>
+</html>
