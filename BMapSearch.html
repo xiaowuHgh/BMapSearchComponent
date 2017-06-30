@@ -152,7 +152,7 @@ function Map(ele,data,type){
 		//清除所有的覆盖物
 		map.clearOverlays(); 
 		// 隐藏搜索结果
-		$("#s_result").hide();
+		$(".searchResult").hide();
 		var point = new BMap.Point(e.point.lng, e.point.lat);
 		var marker = new BMap.Marker(point); // 创建标注    
 		map.addOverlay(marker);
